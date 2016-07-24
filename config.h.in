@@ -1,0 +1,17 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+! enable / disable features, portability and/or setting flags :
+
+! Macros to simplify the 2D/3D declarations
+#ifdef heatFlux_CALC_2D
+#define IN_2D
+#define IN_3D !
+#elif defined heatFlux_CALC_3D
+#define IN_2D !
+#define IN_3D
+#else
+#error You have not specified dimension to be used (2D/3D)
+#endif
+
+#endif
