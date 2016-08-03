@@ -14,5 +14,5 @@
   tMax = 10,
   dt = 0.01,
   ntime_step_max = 1000
-  !ntime_step_max = 20
+  noutput_file = 10
   /

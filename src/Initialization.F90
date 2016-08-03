@@ -21,7 +21,17 @@ module Initialization_mod
     !  Temp(j) = 373.d0
     !enddo
 
+#ifdef heatFlux_CALC_2D
+
     Temp(ny/2 + ny*(nx/2-1)) = 373.d0
+
+#elif defined heatFlux_CALC_3D
+
+    do k=1,nz
+      Temp(ny/2 + ny*(nx/2-1) + ny*nx*(k-1)) = 373.d0
+    enddo
+
+#endif
 
   end subroutine Initialize_Temperature
 

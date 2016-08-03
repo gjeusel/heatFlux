@@ -1,0 +1,21 @@
+&material_prop
+  therm_conduct = 0.44, ! (W/m².K) metal thermal conductivity of steel
+  cp = 1.81d6,            ! (J/K.kg) specific heat of steel
+  rho = 1.d0,          ! (kg/m³)density of steel
+  /
+
+&mesh_prop
+  length = 0.00249,       ! (m)
+  width = 0.00249,        ! (m)
+  thickness = 0.0011, ! (m)
+  nx = 32,
+  ny = 32,
+  nz = 10,
+  /
+
+&temporal_integration
+  tMax = 1.895,
+  dt = 0.005,
+  ntime_step_max = 379
+  noutput_file = 10
+  /
