@@ -7,6 +7,11 @@ if [ $# -lt 1 ] ; then
   exit
 fi
 
+if [ ! -e "$1" ]; then
+  echo "error : file doesn't exist"
+  exit
+fi
+
 input_file_name=$1
 
 # ${string/%substring/replacement}

@@ -8,8 +8,8 @@ module IO_mod
   private
 
   public :: opening_file
-  public :: write_file_Temp
-  public :: write_file_Temp_area
+  public :: write_physical_datas
+  public :: read_heatGenFile_perTimeStep
 
   contains
 
@@ -41,30 +41,100 @@ module IO_mod
 
   end subroutine opening_file !}}}
 
-  subroutine write_file_Temp_area(Temp, ncounter_write_file, t) !{{{
+  subroutine write_physical_datas(Temp, ncounter_write_file, t) !{{{
     real(RP), dimension(:), intent(in) :: Temp
     integer, intent(inout) :: ncounter_write_file
     real(RP), intent(in) :: t
 
+    character(len=STRING_LENGTH) :: o_filename, num_file
     integer :: iunit, error
-    character(len=STRING_LENGTH) :: filename, num_file
-    character(len=STRING_LENGTH) :: real_format, row_format
-    real(RP) :: pos_x, pos_y, pos_z
 
     if (ncounter_write_file*tMax/noutput_file <= t) then
 
       write(num_file, *) ncounter_write_file
-      write(filename, *) "Temperature_area_", trim(adjustl(num_file)), ".csv"
-
-      open(newunit=iunit, file=trim(adjustl(filename)), iostat=error)
+      write(o_filename, *) trim(adjustl(o_base_name)),"_",trim(adjustl(num_file)),".", trim(adjustl(o_format))
+      open(newunit=iunit, file=trim(adjustl(o_filename)), iostat=error)
 
       call write_banner_file(iunit, t)
-      !write(iunit, *), "x coord, y coord, Temperature"
+      call write_Full_Temp_field(Temp, iunit)
+      close(iunit)
 
+IN_3D if (o_field_area) then
+IN_3D   write(o_filename, *) "plan_",trim(adjustl(o_base_name)),"_",trim(adjustl(num_file)),".", trim(adjustl(o_format))
+IN_3D   open(newunit=iunit, file=trim(adjustl(o_filename)), iostat=error)
+IN_3D   call write_banner_file(iunit, t)
+IN_3D   call write_Plan_Temp_field(Temp, iunit)
+IN_3D   close(iunit)
+IN_3D endif
+
+      ncounter_write_file = ncounter_write_file + 1
+    endif
+
+  end subroutine write_physical_datas !}}}
+
+  subroutine write_Full_Temp_field(Temp, iunit) !{{{
+    real(RP), dimension(:), intent(in) :: Temp
+    integer, intent(in) :: iunit
+
+    character(len=STRING_LENGTH) :: real_format, row_format
+    real(RP) :: pos_x, pos_y, pos_z
+
+      ! Regarding the filetype output format desired :
+      if (trim(adjustl(o_format)) == "csv") then
+        real_format = "F15.10"
+IN_2D   row_format = "(" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // ")"
+IN_3D   row_format = "(" // trim(adjustl(real_format)) // "A2" //trim(adjustl(real_format)) &
+IN_3D                // "A2" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // ")"
+
+IN_2D   write(iunit, *) "X,               Y,               T,"
+IN_3D   write(iunit, *) "X,               Y,               Z,               T,"
+
+IN_3D   do k=1, nz
+IN_3D     pos_z = (k-0.5)*delta_z
+
+          do j=1, ny
+            pos_y = (j-0.5)*delta_y
+
+            do i=1, nx
+              pos_x = (i-0.5)*delta_x
+
+IN_2D         write(iunit,row_format) pos_x, ", ", pos_y, ", ", Temp(j + ny*(i-1))
+IN_3D         write(iunit,row_format) pos_x, ", ", pos_y, ", ", pos_z, ", ", Temp(j + ny*(i-1) + nx*ny*(k-1))
+
+            enddo
+          write(iunit,*)
+          enddo
+IN_3D   write(iunit,*)
+IN_3D   enddo
+      endif
+
+  end subroutine write_Full_Temp_field !}}}
+
+#ifdef heatFlux_CALC_3D
+  subroutine write_Plan_Temp_field(Temp, iunit) !{{{
+    real(RP), dimension(:), intent(in) :: Temp
+    integer, intent(in) :: iunit
+
+    character(len=STRING_LENGTH) :: real_format, row_format
+    real(RP) :: pos_x, pos_y, pos_z
+
+    integer :: k_z
+
+    pos_z = o_field_area_z ! from namelist
+
+    if (pos_z == 0) then
+      k_z = 1
+    else
+      k_z = nint(pos_z/delta_z) ! integer closer to the real
+    endif
+
+    ! Regarding the filetype output format desired :
+    if (trim(adjustl(o_format)) == "csv") then
       real_format = "F15.10"
       row_format = "(" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // ")"
 
-IN_3D k = nz
+      write(iunit, *) "# Plan Temperature Field : Z = ", pos_z
+      write(iunit, *) "X,               Y,               T,"
 
       do j=1, ny
         pos_y = (j-0.5)*delta_y
@@ -72,65 +142,15 @@ IN_3D k = nz
         do i=1, nx
           pos_x = (i-0.5)*delta_x
 
-IN_2D     write(iunit,row_format) pos_x, ", ", pos_y, ", ", Temp(j + ny*(i-1))
-IN_3D     write(iunit,row_format) pos_x, ", ", pos_y, ", ", Temp(j + ny*(i-1) + nx*ny*(k-1))
+          write(iunit,row_format) pos_x, ", ", pos_y, ", ", Temp(j + ny*(i-1) + nx*ny*(k_z-1))
 
         enddo
-        write(iunit,*)
+      write(iunit,*)
       enddo
-
-      close(iunit)
-      ncounter_write_file = ncounter_write_file + 1
     endif
 
-  end subroutine write_file_Temp_area !}}}
-
-  subroutine write_file_Temp(Temp, ncounter_write_file, t) !{{{
-    real(RP), dimension(:), intent(in) :: Temp
-    integer, intent(inout) :: ncounter_write_file
-    real(RP), intent(in) :: t
-
-    integer :: iunit, error
-    character(len=STRING_LENGTH) :: filename, num_file
-    character(len=STRING_LENGTH) :: real_format, row_format
-    real(RP) :: pos_x, pos_y, pos_z
-
-    if (ncounter_write_file*tMax/noutput_file <= t) then
-
-      write(num_file, *) ncounter_write_file
-      write(filename, *) "Temperature_", trim(adjustl(num_file)), ".csv"
-
-      open(newunit=iunit, file=trim(adjustl(filename)), iostat=error)
-
-      call write_banner_file(iunit, t)
-      !write(iunit, *), "x coord, y coord, z coord, Temperature"
-
-      real_format = "F15.10"
-IN_2D row_format = "(" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // ")"
-IN_3D row_format = "(" // trim(adjustl(real_format)) // "A2" //trim(adjustl(real_format)) &
-IN_3D              // "A2" // trim(adjustl(real_format)) // "A2" // trim(adjustl(real_format)) // ")"
-
-IN_3D do k=1, nz
-IN_3D   pos_z = (k-0.5)*delta_z
-
-        do j=1, ny
-          pos_y = (j-0.5)*delta_y
-
-          do i=1, nx
-            pos_x = (i-0.5)*delta_x
-
-IN_2D       write(iunit,row_format) pos_x, ", ", pos_y, ", ", Temp(j + ny*(i-1))
-IN_3D       write(iunit,row_format) pos_x, ", ", pos_y, ", ", pos_z, ", ", Temp(j + ny*(i-1) + nx*ny*(k-1))
-
-          enddo
-        enddo
-IN_3D enddo
-
-      close(iunit)
-      ncounter_write_file = ncounter_write_file + 1
-    endif
-
-  end subroutine write_file_Temp !}}}
+  end subroutine write_Plan_Temp_field !}}}
+#endif
 
   subroutine write_banner_file(iunit, t) !{{{
     integer, intent(in) :: iunit
@@ -182,5 +202,60 @@ IN_3D    write(tmp_str_3, "(F10.3)") thickness
     write(iunit, *)
 
   end subroutine write_banner_file !}}}
+
+  subroutine read_heatGenFile_perTimeStep(iunit, heat_surface_gen) !{{{
+    integer, intent(in) :: iunit
+    real(RP), dimension(:), allocatable, intent(inout) :: heat_surface_gen
+
+    character(len=(STRING_LENGTH)) :: tmp
+    integer :: nx_read, ny_read
+    real(RP) :: time_read
+
+    call read_header_heatGenFile(iunit, nx_read, ny_read, time_read)
+
+    do i = 1, nx
+      do j = 1, ny
+        ! reading x, y
+        read(iunit, "(A13)", advance="no") tmp
+        ! reading q and skipping the end of the line :
+        read(iunit, *) heat_surface_gen(j + ny*(i-1))
+      enddo
+    enddo
+
+  end subroutine read_heatGenFile_perTimeStep !}}}
+
+  subroutine read_header_heatGenFile(iunit, nx_read, ny_read, time_read) !{{{
+    integer, intent(in) :: iunit
+    integer, intent(inout) :: nx_read, ny_read
+    real(RP), intent(inout) :: time_read
+
+    character(len=(STRING_LENGTH)) :: tmp_str
+    integer :: tmp_int
+
+    ! Reading first two lines
+    read(iunit, *) tmp_str
+    read(iunit, *) tmp_str
+
+    ! Read third line :
+    read(iunit, "(A8)", advance="no") tmp_str
+    read(iunit, "(I10)", advance="no") nx_read
+    read(iunit, "(A3)", advance="no") tmp_str
+    read(iunit, "(I10)", advance="no") ny_read
+    read(iunit, "(A19)", advance="no") tmp_str
+    read(iunit, "(I10)", advance="no") tmp_int
+    read(iunit, "(A13)", advance="no") tmp_str
+    read(iunit, *) time_read
+
+    if(nx_read/=nx) then
+      write(*,*) "Error : nx from heat generation file different from nx choosed in namelist"
+      stop
+    endif
+
+    if(ny_read/=ny) then
+      write(*,*) "Error : ny from heat generation file different from ny choosed in namelist"
+      stop
+    endif
+
+  end subroutine read_header_heatGenFile !}}}
 
 end module IO_mod

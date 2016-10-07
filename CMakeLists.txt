@@ -126,6 +126,7 @@ add_executable(heatFlux
   ./src/Common_Variables.F90
   ./src/IO.F90
   ./src/Initialization.F90
+  ./src/Boundary_Conditions.F90
   ./src/TemporalVariationRate.F90
-  ./src/update_Temp.F90
+  ./src/Finite_Element_Resolution.F90
   )
